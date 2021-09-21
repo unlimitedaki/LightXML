@@ -18,7 +18,8 @@ def createDataCSV(dataset):
                 'wiki500k': 'Wiki-500K',
                 'amazoncat13k': 'AmazonCat-13K',
                 'amazon670k': 'Amazon-670K',
-                'eurlex4k': 'Eurlex-4K'}
+                'eurlex4k': 'Eurlex-4K',
+                'citeulike': 'CiteULike'}
 
     assert dataset in name_map
     dataset = name_map[dataset]
