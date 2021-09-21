@@ -1,6 +1,7 @@
 import sys
 import random
 import numpy as np
+import os
 # from apex import amp
 from model import LightXML
 
@@ -84,7 +85,11 @@ def train(model, df, label_map):
 
         if max_only_p5 < p5:
             max_only_p5 = p5
-            model.save_model(f'models/model-{get_exp_name()}.bin')
+            output_dir = os.path.join(args.output_path,"models")
+            if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+            output_file = os.path.join(output_dir,f'model-{get_exp_name()}.bin')
+            model.save_model(output_file)
 
         if epoch >= args.epoch + 5 and max_only_p5 != p5:
             break
@@ -131,6 +136,8 @@ parser.add_argument('--eval_step', type=int, required=False, default=20000)
 parser.add_argument('--hidden_dim', type=int, required=False, default=300)
 
 parser.add_argument('--eval_model', action='store_true')
+
+parser.add_argument('--output_path', required = True)
 
 args = parser.parse_args()
 
