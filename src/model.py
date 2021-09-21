@@ -202,7 +202,7 @@ class LightXML(nn.Module):
             candidates = candidates.detach().cpu()
         scores, indices = torch.topk(logits.detach().cpu(), k=10)
 
-        acc1, acc3, acc5, total = 0, 0, 0, 0
+        acc1, acc3, acc5, acc10, total = 0, 0, 0, 0, 0 
         for i, l in enumerate(labels):
             l = set(np.nonzero(l)[0])
 
@@ -214,18 +214,19 @@ class LightXML(nn.Module):
             acc1 += len(set([labels[0]]) & l)
             acc3 += len(set(labels[:3]) & l)
             acc5 += len(set(labels[:5]) & l)
+            acc10 += len(set(labels[:10]) & l)
             total += 1
 
-        return total, acc1, acc3, acc5
+        return total, acc1, acc3, acc5, acc10
 
     def one_epoch(self, epoch, dataloader, optimizer,
                   mode='train', eval_loader=None, eval_step=20000, log=None):
 
         bar = tqdm.tqdm(total=len(dataloader))
-        p1, p3, p5 = 0, 0, 0
-        g_p1, g_p3, g_p5 = 0, 0, 0
-        total, acc1, acc3, acc5 = 0, 0, 0, 0
-        g_acc1, g_acc3, g_acc5 = 0, 0, 0
+        p1, p3, p5, p10  = 0, 0, 0, 0
+        g_p1, g_p3, g_p5, g_p10 = 0, 0, 0, 0
+        total, acc1, acc3, acc5, acc10 = 0, 0, 0, 0, 0
+        g_acc1, g_acc3, g_acc5, g_acc10 = 0, 0, 0, 0 
         train_loss = 0
 
         if mode == 'train':
@@ -274,13 +275,13 @@ class LightXML(nn.Module):
 
                     if step % eval_step == 0 and eval_loader is not None and step != 0:
                         results = self.one_epoch(epoch, eval_loader, optimizer, mode='eval')
-                        p1, p3, p5 = results[3:6]
-                        g_p1, g_p3, g_p5 = results[:3]
+                        p1, p3, p5, p10 = results[4:8]
+                        g_p1, g_p3, g_p5,g_p10  = results[:4]
                         if self.group_y is not None:
                             log.log(f'{epoch:>2} {step:>6}: {p1:.4f}, {p3:.4f}, {p5:.4f}'
                                     f' {g_p1:.4f}, {g_p3:.4f}, {g_p5:.4f}')
                         else:
-                            log.log(f'{epoch:>2} {step:>6}: {p1:.4f}, {p3:.4f}, {p5:.4f}')
+                            log.log(f'{epoch:>2} {step:>6}: {p1:.4f}, {p3:.4f}, {p5:.4f}, {p10:.4f}')
                         # NOTE: we don't reset model to train mode and keep model in eval mode
                         # which means all dropout will be remove after `eval_step` in every epoch
                         # this tricks makes LightXML converge fast
@@ -294,12 +295,13 @@ class LightXML(nn.Module):
                     logits = outputs
                     if mode == 'eval':
                         labels = batch[3]
-                        _total, _acc1, _acc3, _acc5 =  self.get_accuracy(None, logits, labels.cpu().numpy())
-                        total += _total; acc1 += _acc1; acc3 += _acc3; acc5 += _acc5
+                        _total, _acc1, _acc3, _acc5, _acc10 =  self.get_accuracy(None, logits, labels.cpu().numpy())
+                        total += _total; acc1 += _acc1; acc3 += _acc3; acc5 += _acc5; acc10 += _acc10
                         p1 = acc1 / total
                         p3 = acc3 / total / 3
                         p5 = acc5 / total / 5
-                        bar.set_postfix(p1=p1, p3=p3, p5=p5)
+                        p10 = acc10 / total /10
+                        bar.set_postfix(p1=p1, p3=p3, p5=p5,p10=p10)
                     elif mode == 'test':
                         pred_scores.append(logits.detach().cpu())
                 else:
@@ -309,18 +311,21 @@ class LightXML(nn.Module):
                         labels = batch[3]
                         group_labels = batch[4]
 
-                        _total, _acc1, _acc3, _acc5 = self.get_accuracy(candidates, logits, labels.cpu().numpy())
-                        total += _total; acc1 += _acc1; acc3 += _acc3; acc5 += _acc5
+                        _total, _acc1, _acc3, _acc5, _acc10= self.get_accuracy(candidates, logits, labels.cpu().numpy())
+                        total += _total; acc1 += _acc1; acc3 += _acc3; acc5 += _acc5; acc10 += _acc10
                         p1 = acc1 / total
                         p3 = acc3 / total / 3
                         p5 = acc5 / total / 5
+                        p10 = acc10 / total /10
     
-                        _, _g_acc1, _g_acc3, _g_acc5 = self.get_accuracy(None, group_logits, group_labels.cpu().numpy())
-                        g_acc1 += _g_acc1; g_acc3 += _g_acc3; g_acc5 += _g_acc5
+                        _, _g_acc1, _g_acc3, _g_acc5,_g_acc10 = self.get_accuracy(None, group_logits, group_labels.cpu().numpy())
+                        g_acc1 += _g_acc1; g_acc3 += _g_acc3; g_acc5 += _g_acc5;g_acc10 += _g_acc10
                         g_p1 = g_acc1 / total
                         g_p3 = g_acc3 / total / 3
                         g_p5 = g_acc5 / total / 5
-                        bar.set_postfix(p1=p1, p3=p3, p5=p5, g_p1=g_p1, g_p3=g_p3, g_p5=g_p5)
+                        g_p10 = g_acc10 / total / 10
+
+                        bar.set_postfix(p1=p1, p3=p3, p5=p5, p10=p10, g_p1=g_p1, g_p3=g_p3, g_p5=g_p5,g_p10 = g_p10)
                     elif mode == 'test':
                         _scores, _indices = torch.topk(logits.detach().cpu(), k=100)
                         _labels = torch.stack([candidates[i][_indices[i]] for i in range(_indices.shape[0])], dim=0)
@@ -333,7 +338,7 @@ class LightXML(nn.Module):
         bar.close()
 
         if mode == 'eval':
-            return g_p1, g_p3, g_p5, p1, p3, p5
+            return g_p1, g_p3, g_p5,g_p10, p1, p3, p5, p10
         elif mode == 'test':
             return torch.cat(pred_scores, dim=0).numpy(), torch.cat(pred_labels, dim=0).numpy() if len(pred_labels) != 0 else None
         elif mode == 'train':

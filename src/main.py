@@ -74,7 +74,7 @@ def train(model, df, label_map):
         else:
             ev_result = model.one_epoch(epoch, testloader, optimizer, mode='eval')
 
-        g_p1, g_p3, g_p5, p1, p3, p5 = ev_result
+        g_p1, g_p3, g_p5, g_p10, p1, p3, p5, p10 = ev_result
 
         log_str = f'{epoch:>2}: {p1:.4f}, {p3:.4f}, {p5:.4f}, train_loss:{train_loss}'
         if args.dataset in ['wiki500k', 'amazon670k']:
