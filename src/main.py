@@ -138,6 +138,7 @@ parser.add_argument('--hidden_dim', type=int, required=False, default=300)
 parser.add_argument('--eval_model', action='store_true')
 
 parser.add_argument('--output_path', required = True)
+parser.add_argument('--checkpoint_path',default = None)
 
 args = parser.parse_args()
 
@@ -179,6 +180,8 @@ if __name__ == '__main__':
         model = LightXML(n_labels=len(label_map), bert=args.bert,
                          update_count=args.update_count,
                          use_swa=args.swa, swa_warmup_epoch=args.swa_warmup, swa_update_step=args.swa_step)
+        if args.checkpoint_path:
+            model.load_model(args.checkpoint_path)
 
     if args.eval_model and args.dataset in ['wiki500k', 'amazon670k']:
         print(f'load models/model-{get_exp_name()}.bin')

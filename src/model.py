@@ -152,6 +152,10 @@ class LightXML(nn.Module):
         self.swa_swap_params()
         torch.save(self.state_dict(), path)
         self.swa_swap_params()
+    
+    def load_model(self, path):
+        state_dict = torch.load(path)
+        self.load_state_dict(state_dict)
 
     def swa_init(self):
         self.swa_state = {'models_num': 1}
